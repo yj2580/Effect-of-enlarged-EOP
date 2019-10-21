@@ -1,0 +1,155 @@
+---
+title: "p8105_mtp_yj2580"
+author: "yj2580"
+date: "10/20/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+```
+
+## Problem 1 - DATA
+```{r}
+data = 
+  # load the data and skip first 8 extra rows
+  read_excel("./data/p8105_mtp_data.xlsx", skip = 8) %>%
+  # clean variables' names
+  janitor::clean_names() %>%
+  mutate(
+  # fill in missing values with 0 for EOP size
+    eop_size_mm = ifelse(is.na(eop_size_mm) == TRUE, "0", eop_size_mm),
+    # in age group, all age > 60 = 6
+    age_group = str_replace(age_group, "[78]", "6"),
+    eop_size_mm = as.numeric(eop_size_mm),
+    # correct some misclassifications for some variables
+    eop_size = 
+      ifelse(eop_size_mm<5, "0", 
+          ifelse(eop_size_mm<10, "1",
+              ifelse(eop_size_mm<15, "2", 
+                  ifelse(eop_size_mm<20, "3", 
+                        ifelse(eop_size_mm<25, "4", "5"))))), 
+    eop_visibility_classification = 
+      ifelse(eop_size == 0, "0", 
+             ifelse(eop_size <= 5, "1", "2"))，
+    fhp_category = 
+      ifelse(fhp_size_mm <= 10, "0",
+        ifelse(fhp_size_mm <= 20, "1",
+          ifelse(fhp_size_mm <= 30, "2",
+            ifelse(fhp_size_mm <= 40, "3",  
+              ifelse(fhp_size_mm <= 50, "4",
+                ifelse(fhp_size_mm <= 60, "5",
+                  ifelse(fhp_size_mm <= 70, "6",
+                    ifelse(fhp_size_mm <= 80, "7", "8" )))))))),
+    # tranform numbers into strings for sex and age_group variables.
+    sex = recode(sex, "0" = "female", "1" = "male"),
+    age_group = recode(age_group,
+      "1" = "<18",
+      "2" = "18-30",
+      "3" = "31-40",
+      "4" = "41-50",
+      "5" = "51-60",
+      "6" = "60+"
+    ),
+    # create ordered factors for categorical variables below
+    sex = factor(sex, levels = c("female", "male")),
+    age_group = factor(age_group, levels = c("<18", "18-30", "31-40", "41-50","51-60", "60+")),
+    eop_size = factor(eop_size, levels =  c("0", "1", "2", "3", "4","5")),
+    eop_visibility_classification = factor(eop_visibility_classification, levels = c("0", "1", "2")),
+    fhp_category = factor(fhp_category, levels = c("0", "1", "2", "3", "4", "5", "6", "7"))
+  )
+```
+
+Show age and gender distribution by tables
+
+```{r}
+data %>% 
+  group_by(sex) %>%
+  summarise(number_of_participants = n()) %>%
+  knitr::kable()
+data %>%
+  group_by(age) %>%
+  summarise(number_of_participants = n()) %>%
+  knitr::kable()
+data %>%
+  group_by(age) %>%
+  summarise(number_of_participants = n()) %>%
+  ggplot(aes(x=age, y=number_of_participants)) + geom_bar(stat = "identity")
+```
+
+Note issues in the available data
+
+```{r}
+data_origin = read_excel("./data/p8105_mtp_data.xlsx", skip = 8)
+data_origin %>%
+  janitor::clean_names() %>%
+  mutate(
+    age_correct = ifelse(age < 18, "1",
+                    ifelse(age <= 30, "2",
+                      ifelse(age <= 40, "3",
+                        ifelse(age <= 50, "4",  
+                          ifelse(age <= 60, "5",
+                            ifelse(age <= 70, "6", 
+                              ifelse(age <= 80, "7", "8"))))))),
+    age_logical = ifelse(age_group == age_correct, "1", "0")
+  ) %>%
+  filter(age_logical == "0") %>%
+  select(age, age_group, age_correct) %>%
+  knitr::kable()
+
+data_origin %>%
+  janitor::clean_names() %>%
+  mutate(
+    eop_size_mm = as.numeric(eop_size_mm),
+    # correct misclassifications
+    eop_size_correct = 
+      ifelse(eop_size_mm<5, "0", 
+          ifelse(eop_size_mm<10, "1",
+              ifelse(eop_size_mm<15, "2", 
+                  ifelse(eop_size_mm<20, "3", 
+                        ifelse(eop_size_mm<25, "4", "5"))))),
+    eop_size_logical = ifelse(eop_size == eop_size_correct, "1", "0")
+  ) %>%
+  filter(eop_size_logical == "0") %>%
+  select(eop_size_mm, eop_size, eop_size_correct) %>%
+  knitr::kable() 
+
+data_origin %>%
+  janitor::clean_names() %>%
+  mutate(
+   eop_visibility_correct = 
+      ifelse(eop_size_mm == 0, "0", 
+             ifelse(eop_size_mm <= 5, "1", "2")),
+   eop_visibility_logical = ifelse(eop_visibility_classification == eop_visibility_correct, "1", "0")
+  ) %>%
+  filter(eop_visibility_logical == "0") %>%
+  select(eop_size_mm, eop_visibility_classification, eop_visibility_correct) %>%
+  knitr::kable()
+
+data_origin %>%
+  janitor::clean_names() %>%
+  mutate(
+   fhp_correct = 
+      ifelse(fhp_size_mm <= 10, "0",
+        ifelse(fhp_size_mm <= 20, "1",
+          ifelse(fhp_size_mm <= 30, "2",
+            ifelse(fhp_size_mm <= 40, "3",  
+              ifelse(fhp_size_mm <= 50, "4",
+                ifelse(fhp_size_mm <= 60, "5",
+                  ifelse(fhp_size_mm <= 70, "6",
+                    ifelse(fhp_size_mm <= 80, "7", "8" )))))))),
+   fhp_logical = ifelse(fhp_category == fhp_correct, "1", "0")
+  ) %>%
+  filter(fhp_logical == "0") %>%
+  select(fhp_size_mm, fhp_category, fhp_correct) %>%
+  knitr::kable()
+```
+
+## Problem 2 - Visualization
+```{r}
+
+```
+
