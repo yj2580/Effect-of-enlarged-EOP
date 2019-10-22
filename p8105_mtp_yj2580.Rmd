@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readxl)
 library(tidyverse)
 library(ggplot2)
+library(gridExtra)
 ```
 
 ## Problem 1 - DATA
@@ -22,44 +23,23 @@ data =
   mutate(
   # fill in missing values with 0 for EOP size
     eop_size_mm = ifelse(is.na(eop_size_mm) == TRUE, "0", eop_size_mm),
-    # in age group, all age > 60 = 6
-    age_group = str_replace(age_group, "[78]", "6"),
+    fhp_size_mm = ifelse(is.na(fhp_size_mm) == TRUE, "0", fhp_size_mm),
     eop_size_mm = as.numeric(eop_size_mm),
-    # correct some misclassifications for some variables
-    eop_size = 
-      ifelse(eop_size_mm<5, "0", 
-          ifelse(eop_size_mm<10, "1",
-              ifelse(eop_size_mm<15, "2", 
-                  ifelse(eop_size_mm<20, "3", 
-                        ifelse(eop_size_mm<25, "4", "5"))))), 
-    eop_visibility_classification = 
-      ifelse(eop_size == 0, "0", 
-             ifelse(eop_size <= 5, "1", "2"))，
-    fhp_category = 
-      ifelse(fhp_size_mm <= 10, "0",
-        ifelse(fhp_size_mm <= 20, "1",
-          ifelse(fhp_size_mm <= 30, "2",
-            ifelse(fhp_size_mm <= 40, "3",  
-              ifelse(fhp_size_mm <= 50, "4",
-                ifelse(fhp_size_mm <= 60, "5",
-                  ifelse(fhp_size_mm <= 70, "6",
-                    ifelse(fhp_size_mm <= 80, "7", "8" )))))))),
-    # tranform numbers into strings for sex and age_group variables.
+    fhp_size_mm = as.numeric(fhp_size_mm),
     sex = recode(sex, "0" = "female", "1" = "male"),
-    age_group = recode(age_group,
-      "1" = "<18",
-      "2" = "18-30",
-      "3" = "31-40",
-      "4" = "41-50",
-      "5" = "51-60",
-      "6" = "60+"
-    ),
+    age_group = recode(age_group, 
+                       "1" = "<18", 
+                       "2" = "18-30", 
+                       "3" = "31-40", 
+                       "4" = "41-50", 
+                       "5" = "51-60", 
+                       "6" = ">60", "7" = ">60", "8" = ">60"),
     # create ordered factors for categorical variables below
     sex = factor(sex, levels = c("female", "male")),
-    age_group = factor(age_group, levels = c("<18", "18-30", "31-40", "41-50","51-60", "60+")),
+    age_group = factor(age_group, levels = c("<18", "18-30", "31-40", "41-50","51-60", ">60")),
     eop_size = factor(eop_size, levels =  c("0", "1", "2", "3", "4","5")),
     eop_visibility_classification = factor(eop_visibility_classification, levels = c("0", "1", "2")),
-    fhp_category = factor(fhp_category, levels = c("0", "1", "2", "3", "4", "5", "6", "7"))
+    fhp_category = factor(fhp_category, levels = c("0", "1", "2", "3", "4", "5", "6", "7", "8"))
   )
 ```
 
@@ -75,16 +55,15 @@ data %>%
   summarise(number_of_participants = n()) %>%
   knitr::kable()
 data %>%
-  group_by(age) %>%
+  group_by(age, sex) %>%
   summarise(number_of_participants = n()) %>%
-  ggplot(aes(x=age, y=number_of_participants)) + geom_bar(stat = "identity")
+  ggplot(aes(x=age, y=number_of_participants, fill = sex)) + geom_bar(stat = "identity", position = "dodge")
 ```
 
 Note issues in the available data
 
 ```{r}
-data_origin = read_excel("./data/p8105_mtp_data.xlsx", skip = 8)
-data_origin %>%
+data %>%
   janitor::clean_names() %>%
   mutate(
     age_correct = ifelse(age < 18, "1",
@@ -100,7 +79,7 @@ data_origin %>%
   select(age, age_group, age_correct) %>%
   knitr::kable()
 
-data_origin %>%
+data %>%
   janitor::clean_names() %>%
   mutate(
     eop_size_mm = as.numeric(eop_size_mm),
@@ -117,7 +96,7 @@ data_origin %>%
   select(eop_size_mm, eop_size, eop_size_correct) %>%
   knitr::kable() 
 
-data_origin %>%
+data %>%
   janitor::clean_names() %>%
   mutate(
    eop_visibility_correct = 
@@ -129,7 +108,7 @@ data_origin %>%
   select(eop_size_mm, eop_visibility_classification, eop_visibility_correct) %>%
   knitr::kable()
 
-data_origin %>%
+data %>%
   janitor::clean_names() %>%
   mutate(
    fhp_correct = 
@@ -149,6 +128,39 @@ data_origin %>%
 ```
 
 ## Problem 2 - Visualization
+```{r}
+p1 = 
+  data %>%
+  ggplot(aes(x = fhp_size_mm, fill = age_group, color = sex)) +
+  geom_histogram() +
+  labs(x = "fhp size", y = "the number of people", title = "the distribution of fhp size")
+ 
+eop_total = data %>%
+  group_by(age_group, sex) %>%
+  summarise(eop_total = n())
+eop_enlarged = data %>%
+  mutate(
+    eop_logical = ifelse(eop_size == "0"|eop_size == "1", "normal", "enlarged")
+  ) %>%
+  filter(eop_logical == "enlarged") %>%
+  group_by(age_group, sex) %>%
+  summarise(eop_enlarged = n())
+eop_rate = 
+  left_join(eop_total, eop_enlarged, c("age_group", "sex")) %>%
+  replace(is.na(.), 0) %>%
+  mutate(eop_rate = eop_enlarged / eop_total)
+p2 = 
+  eop_rate %>%
+  ggplot(aes(x = age_group, y = eop_rate, color = sex, group = sex)) + 
+  geom_line() +
+  geom_point() +
+  labs(x = "age group", y = "the rate of enlarged EOP in each group", title = "improved version of figure 4")
+
+grid.arrange(p1, p2, ncol = 2, widths = c(1.5,1.5))
+```
+
+## Problem 3 - Reproducing reported results
+
 ```{r}
 
 ```
