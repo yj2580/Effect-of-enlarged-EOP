@@ -37,9 +37,9 @@ data =
     # create ordered factors for categorical variables below
     sex = factor(sex, levels = c("female", "male")),
     age_group = factor(age_group, levels = c("<18", "18-30", "31-40", "41-50","51-60", ">60")),
-    eop_size = factor(eop_size, levels =  c("0", "1", "2", "3", "4","5")),
+    eop_size = factor(eop_size, levels =  c("0", "1", "2", "3", "4","5", "14.6")),
     eop_visibility_classification = factor(eop_visibility_classification, levels = c("0", "1", "2")),
-    fhp_category = factor(fhp_category, levels = c("0", "1", "2", "3", "4", "5", "6", "7", "8"))
+    fhp_category = factor(fhp_category, levels = c("0", "1", "2", "3", "4", "5", "6", "7", "30.8"))
   )
 ```
 
@@ -66,13 +66,11 @@ Note issues in the available data
 data %>%
   janitor::clean_names() %>%
   mutate(
-    age_correct = ifelse(age < 18, "1",
-                    ifelse(age <= 30, "2",
-                      ifelse(age <= 40, "3",
-                        ifelse(age <= 50, "4",  
-                          ifelse(age <= 60, "5",
-                            ifelse(age <= 70, "6", 
-                              ifelse(age <= 80, "7", "8"))))))),
+    age_correct = ifelse(age < 18, "<18",
+                    ifelse(age <= 30, "18-30",
+                      ifelse(age <= 40, "31-40",
+                        ifelse(age <= 50, "41-50",  
+                          ifelse(age <= 60, "51-60", ">60"))))),
     age_logical = ifelse(age_group == age_correct, "1", "0")
   ) %>%
   filter(age_logical == "0") %>%
@@ -131,8 +129,8 @@ data %>%
 ```{r}
 p1 = 
   data %>%
-  ggplot(aes(x = fhp_size_mm, fill = age_group, color = sex)) +
-  geom_histogram() +
+  ggplot(aes(x = age_group, y = fhp_size_mm, color = sex)) +
+  geom_boxplot() +
   labs(x = "fhp size", y = "the number of people", title = "the distribution of fhp size")
  
 eop_total = data %>%
@@ -158,10 +156,33 @@ p2 =
 
 grid.arrange(p1, p2, ncol = 2, widths = c(1.5,1.5))
 ```
+Although the authors are interested in how FHP size, age, and sex affect EOP size, no figure contains each of these. Create a 2 x 5 collection of panels, which show the association between FHP size and EOP size in each age and sex group.
+```{r}
+data %>%
+  filter(age_group != "<18") %>%
+  ggplot(aes(x = fhp_size_mm, y = eop_size_mm)) + 
+  geom_point(alpha = .5) +
+  geom_smooth(method = "lm") + 
+  facet_grid(sex ~ age_group)
+```
 
 ## Problem 3 - Reproducing reported results
 
 ```{r}
+data %>%
+  filter(age >= 18 & age <= 86) %>%
+  nrow()
 
+data %>%
+  filter(age >= 18 & age <= 86) %>%
+  group_by(sex) %>%
+  summarise(mean = mean(fhp_size_mm), 
+            stand_devi = sd(fhp_size_mm))
+
+data %>%
+  filter(age >= 18 & age <= 86) %>%
+  group_by(sex) %>%
+  summarise(mean = mean(fhp_size_mm), 
+            stand_devi = sd(fhp_size_mm)) #32.10 32.45
 ```
 
