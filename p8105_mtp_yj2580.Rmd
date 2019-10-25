@@ -29,6 +29,7 @@ data =
     fhp_size_mm = ifelse(is.na(fhp_size_mm) == TRUE, "0", fhp_size_mm),
     eop_size_mm = as.numeric(eop_size_mm),
     fhp_size_mm = as.numeric(fhp_size_mm),
+    # recode sex and age_group with illustrative characters
     sex = recode(sex, "0" = "female", "1" = "male"),
     age_group = recode(age_group, 
                        "1" = "<18", 
@@ -44,14 +45,13 @@ data =
     eop_visibility_classification = factor(eop_visibility_classification, levels = c("0", "1", "2")),
     fhp_category = factor(fhp_category, levels = c("0", "1", "2", "3", "4", "5", "6", "7", "30.8"))
   )
+#  In case of missing 14.6 in eop_size and 30.8 in fhp_category in subsequent analysis, I add them into levels.
 ```
 
-There are some missing values in eop_size_mm and fhp_size_mm, which truly equal 0, so we should replace them with 0. Then I recode sex and age_group with illustrative characters. Finally, create some ordered factor for categorical variables. In case of missing 14.6 in eop_size and 30.8 in fhp_category in subsequent analysis, I add them into levels.
 There are `r nrow(data)` participants and `r ncol(data)` variables.
 age_group = age groups according to decades
 eop_size_mm = the size of the external occipital protuberance
-eop_size = group eop_size_mm for every 5 mm, useful to identify EEOP
-eop_visibility_classification = visible classification, the threshold for recording the size of an EOP was set at 5mm
+eop_size = group eop_size_mm for every 5 mm
 fhp_size_mm = the size of forward head protraction
 fhp_category = group fhp_size_mm for every 10 mm
 
@@ -70,7 +70,7 @@ data %>%
        title = "Age and gender distribution")
 ```
 
-From the table and graph aboved, we can see that sex distribution is almost even amongst age. Age distribution is nearly even from 18 to 72, although the amount is extremely high for group 61-year-old male and 51-year-old female. We can also see a slight right skew in age distribution. (it will be even if grouped by age group, because ">60" group has a wider range.)
+Sex distribution is almost even amongst age. Age distribution is nearly even from 18 to 72, although the amount is extremely high for group 61-year-old male and 51-year-old female. It is slightly right skewed in age distribution. (it will be even if grouped by age group, because ">60" group has a wider range.)
 
 ```{r}
 data %>%
@@ -228,3 +228,8 @@ There are many inconsistencies. After calculation, sample size is `r sample_size
 
 ## Discussion
 To sum up, age, sex and fhp size can all have some effect on EEOP. Female have less chance to get EEOP. Young adults are in greater danger of having EEOP, while middle-aged people are much safer. The association between fhp size and eop size is hard to clearly identify, maybe they are positively associated. Speaking of the flawness of this paper, authors made many mistakes during classifications which may have bad influence on subsequent analysis, leading to unconvincing conclusion. The statement "cell phones are causing horn growth" lacks adequate evidences. The positive association between fhp size and eop size is not strong enough at the first place. Furthermore, there are many causes of fhp other than cell phones. Also, causation can't be concluded unless they did a randomized control study. To address this hypothesis, I would collect information about the frequency of participants' cell phone use or how long they use cell phone everyday.
+
+```{r}
+wordcountaddin:::text_stats()
+```
+
